@@ -1,0 +1,20 @@
+IDEAS:
+* Pieces have items. These items have tags such as move, death, spawn, etc. These tags are read and allow the piece to do things. If a piece has no items, it can't do anything. Pieces are assigned random items at the start.
+* Pieces are inspired by their leader pieces religious views. You have to use this piece to command the other pieces and make them do things. You can do things such as:
+	- give them offerings.
+	- award them medals.
+	- feed them.
+	+ Fromt these situations, pawns now battle each other. Pawns that are more tired, more hungry, less inspired, are worse in battle.
+
+SCRATCH:
+### Instruction:
+The prompt below is a question to answer, a task to complete, or a conversation to respond to; decide which and write an appropriate response.
+### Prompt:
+{0}
+### Response:
+
+### Instruction:
+You are a dungeo master for a DnD game in space. Follow the below instruction in detail. Be succint in your answers.
+### Prompt:
+{0}
+### Response:

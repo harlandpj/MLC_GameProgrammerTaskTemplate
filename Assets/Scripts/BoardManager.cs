@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class BoardManager : MonoBehaviour
@@ -14,8 +15,11 @@ public class BoardManager : MonoBehaviour
     private int selectionX = -1;
     private int selectionY = -1;
 
-    public List<GameObject> chessmanPrefabs;
+    //public List<GameObject> chessmanPrefabs;
     private List<GameObject> activeChessman;
+    
+    public SmartPawn smartPawnPrefab;
+    public King smartKingPrefab;
 
     private Quaternion whiteOrientation = Quaternion.Euler(0, 270, 0);
     private Quaternion blackOrientation = Quaternion.Euler(0, 90, 0);
@@ -30,11 +34,31 @@ public class BoardManager : MonoBehaviour
 
     public int[] EnPassantMove { set; get; }
 
+    [SerializeField] SmartPawnView smartPawnView;
+    [SerializeField] SmartPawnBuilder smartPawnBuilder;
+
     // Use this for initialization
-    void Start()
+    async void Start()
     {
         Instance = this;
         SpawnAllChessmans();
+
+        Debug.Log("Building pawns...");
+        int buildCount = 0;
+        var allTasks = new List<Task>();
+        foreach(var chessman in Chessmans)
+        {
+            if (chessman is SmartPawn) // TODO: can we multi-thread with GPT4ALL??
+            {
+                allTasks.Add(smartPawnBuilder.BuildPawn(chessman as SmartPawn));
+/*                await smartPawnBuilder.BuildPawn(chessman as SmartPawn);
+                Debug.Log($"Built pawn {buildCount++}.");
+*/            
+            }
+        }
+
+        await Task.WhenAll(allTasks.ToArray());
+
         EnPassantMove = new int[2] { -1, -1 };
     }
 
@@ -42,6 +66,13 @@ public class BoardManager : MonoBehaviour
     void Update()
     {
         UpdateSelection();
+        if(selectionX >= 0
+            && selectionY >= 0
+            && selectionX < 8
+            && selectionY < 8)
+        {
+            HoverChessman(selectionX, selectionY);
+        }
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -62,6 +93,16 @@ public class BoardManager : MonoBehaviour
 
         if (Input.GetKey("escape"))
             Application.Quit();
+    }
+
+    private void HoverChessman(int x, int y)
+    {
+        smartPawnView.selectedSmartPawn = null;
+
+        if (Chessmans[x, y] == null) return;
+
+        if (Chessmans[x, y] is SmartPawn)
+            smartPawnView.selectedSmartPawn = Chessmans[x, y] as SmartPawn;
     }
 
     private void SelectChessman(int x, int y)
@@ -97,7 +138,7 @@ public class BoardManager : MonoBehaviour
         BoardHighlights.Instance.HighLightAllowedMoves(allowedMoves);
     }
 
-    private bool calculateVictory()
+    private bool CalculateVictory()
     {
         var rng = new System.Random();
         return rng.Next(0, 100) < 50;
@@ -121,7 +162,7 @@ public class BoardManager : MonoBehaviour
                     return;
                 }
 
-                victory = calculateVictory();
+                victory = CalculateVictory();
                 if (victory)
                 {
                     activeChessman.Remove(c.gameObject);
@@ -132,40 +173,6 @@ public class BoardManager : MonoBehaviour
                     activeChessman.Remove(selectedChessman.gameObject);
                     Destroy(selectedChessman.gameObject);
                 }
-            }
-            if (x == EnPassantMove[0] && y == EnPassantMove[1])
-            {
-                if (isWhiteTurn)
-                    c = Chessmans[x, y - 1];
-                else
-                    c = Chessmans[x, y + 1];
-
-                activeChessman.Remove(c.gameObject);
-                Destroy(c.gameObject);
-            }
-            EnPassantMove[0] = -1;
-            EnPassantMove[1] = -1;
-            if (selectedChessman.GetType() == typeof(Pawn))
-            {
-                if (y == 7) // White Promotion
-                {
-                    activeChessman.Remove(selectedChessman.gameObject);
-                    Destroy(selectedChessman.gameObject);
-                    SpawnChessman(1, x, y, true);
-                    selectedChessman = Chessmans[x, y];
-                }
-                else if (y == 0) // Black Promotion
-                {
-                    activeChessman.Remove(selectedChessman.gameObject);
-                    Destroy(selectedChessman.gameObject);
-                    SpawnChessman(7, x, y, false);
-                    selectedChessman = Chessmans[x, y];
-                }
-                EnPassantMove[0] = x;
-                if (selectedChessman.CurrentY == 1 && y == 3)
-                    EnPassantMove[1] = y - 1;
-                else if (selectedChessman.CurrentY == 6 && y == 4)
-                    EnPassantMove[1] = y + 1;
             }
 
             if (victory)
@@ -201,24 +208,32 @@ public class BoardManager : MonoBehaviour
         }
     }
 
-    private void SpawnChessman(int index, int x, int y, bool isWhite)
+    private void SpawnChessman(GameObject prefab, int x, int y, bool isWhite)
     {
         Vector3 position = GetTileCenter(x, y);
         GameObject go;
 
         if (isWhite)
         {
-            go = Instantiate(chessmanPrefabs[index], position, whiteOrientation) as GameObject;
+            go = Instantiate(prefab, position, whiteOrientation);
+            go.GetComponentInChildren<MeshRenderer>().material.color = Color.red;
+            go.GetComponentInChildren<Chessman>().isWhite = true;
         }
         else
         {
-            go = Instantiate(chessmanPrefabs[index], position, blackOrientation) as GameObject;
+            go = Instantiate(prefab, position, blackOrientation);
+            go.GetComponentInChildren<MeshRenderer>().material.color = Color.green;
+            go.GetComponentInChildren<Chessman>().isWhite = false;
         }
 
         go.transform.SetParent(transform);
         Chessmans[x, y] = go.GetComponent<Chessman>();
         Chessmans[x, y].SetPosition(x, y);
         activeChessman.Add(go);
+
+        var hoverable = go.AddComponent<Hoverable>();
+        hoverable.OnHoverEnter.AddListener(smartPawnView.OnHoverEnter);
+        hoverable.OnHoverExit.AddListener(smartPawnView.OnHoverExit);
     }
 
     private Vector3 GetTileCenter(int x, int y)
@@ -235,57 +250,21 @@ public class BoardManager : MonoBehaviour
         activeChessman = new List<GameObject>();
         Chessmans = new Chessman[8, 8];
 
-        /////// White ///////
-
-        // King
-        SpawnChessman(0, 3, 0, true);
-
-        // Queen
-        SpawnChessman(1, 4, 0, true);
-
-        // Rooks
-        SpawnChessman(2, 0, 0, true);
-        SpawnChessman(2, 7, 0, true);
-
-        // Bishops
-        SpawnChessman(3, 2, 0, true);
-        SpawnChessman(3, 5, 0, true);
-
-        // Knights
-        SpawnChessman(4, 1, 0, true);
-        SpawnChessman(4, 6, 0, true);
-
-        // Pawns
-        for (int i = 0; i < 8; i++)
+        foreach (var team in new bool[] { true, false } )
         {
-            SpawnChessman(5, i, 1, true);
-        }
+            int offset = team ? 0 : 5;
 
+            for(int i = 1; i < 2; ++i)
+            {
+                for(int j = 3; j < 5; ++j)
+                {
+                    //if(i != (team ? 0 : 1) || j != 3)
+                    SpawnChessman(smartPawnPrefab.gameObject, j, offset + i, team);
+                }
+            }
 
-        /////// Black ///////
-
-        // King
-        SpawnChessman(6, 4, 7, false);
-
-        // Queen
-        SpawnChessman(7, 3, 7, false);
-
-        // Rooks
-        SpawnChessman(8, 0, 7, false);
-        SpawnChessman(8, 7, 7, false);
-
-        // Bishops
-        SpawnChessman(9, 2, 7, false);
-        SpawnChessman(9, 5, 7, false);
-
-        // Knights
-        SpawnChessman(10, 1, 7, false);
-        SpawnChessman(10, 6, 7, false);
-
-        // Pawns
-        for (int i = 0; i < 8; i++)
-        {
-            SpawnChessman(11, i, 6, false);
+            // King
+            SpawnChessman(smartKingPrefab.gameObject, 3, team ? 0 : 7, team);
         }
     }
 

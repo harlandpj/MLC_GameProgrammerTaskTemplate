@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 namespace Gpt4All.Samples
 {
@@ -9,8 +10,8 @@ namespace Gpt4All.Samples
         public LlmManager manager;
 
         [Header("UI")]
-        public InputField input;
-        public Text output;
+        public TMP_InputField input;
+        public TMP_Text output;
         public Button submit;
 
         private string _previousText;
