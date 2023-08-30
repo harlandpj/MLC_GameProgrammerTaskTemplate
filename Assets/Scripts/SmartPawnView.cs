@@ -15,6 +15,7 @@ public class SmartPawnView : MonoBehaviour
     [SerializeField] TMP_Text textCurrentHungerState;
     [SerializeField] TMP_Text textAwardsOwned;
     [SerializeField] TMP_Text textCurrentEmotionalState;
+    [SerializeField] TMP_Text textWeapon;
 
     private void Update()
     {
@@ -27,8 +28,10 @@ public class SmartPawnView : MonoBehaviour
         textCharacterName.text = selectedSmartPawn.characterName;
 
         textCharacterDescription.text = selectedSmartPawn.characterDescription;
+        
+        textWeapon.text = selectedSmartPawn.characterWeapon;
 
-        textCurrentBeliefState.text = selectedSmartPawn.currentBeliefState;
+/*        textCurrentBeliefState.text = selectedSmartPawn.currentBeliefState;
 
         textItemsOwned.text = "";
         foreach (var item in selectedSmartPawn.itemsOwned)
@@ -41,7 +44,7 @@ public class SmartPawnView : MonoBehaviour
             textAwardsOwned.text += item + "\n";
 
         textCurrentEmotionalState.text = selectedSmartPawn.currentEmotionalState;
-    }
+*/    }
 
     private void ResetText()
     {

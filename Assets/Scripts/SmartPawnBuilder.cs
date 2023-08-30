@@ -10,16 +10,57 @@ public class SmartPawnBuilder : MonoBehaviour
 
     public async Task BuildPawn(SmartPawn smartPawn)
     {
-        string warriorType = "a Martian warrior";
+        string warriorType = "A Martian warrior";
 
-        string name = await manager.Prompt($"Give a two-word random name for {warriorType}: ");
+        string namePrompt = new PromptFormatter(
+            new List<string>
+            {
+                "A godly warrior name.",
+                "A dancing warrior name.",
+            },
+            new List<string>
+            {
+                "Zuesania",
+                "Emeraldee"
+            }).Build(warriorType + " name.");
+
+        Debug.Log(namePrompt);
+        string name = await manager.Prompt(namePrompt);
         smartPawn.characterName = name.Trim();
         Debug.Log("Name: " + name);
 
-        string description = await manager.Prompt($"Describe in fifteen words the back story of {warriorType} named {name}: ");
-        if (description.Substring(description.Length - 1, 1) != ".")
-            description += "...";
+        string weaponPrompt = new PromptFormatter(
+            new List<string>
+            {
+                "A godly warrior named Zuesania.",
+                "A dancing warrior named Emeraldee.",
+            },
+            new List<string>
+            {
+                "Zuesania's Pike",
+                "The Tango Mancer"
+            }).Build(warriorType + " named " + name + ".");
 
+        Debug.Log(weaponPrompt);
+        string weapon = await manager.Prompt(weaponPrompt);
+        smartPawn.characterWeapon = weapon.Trim();
+        Debug.Log("Weapon: " + weapon);
+
+/*        string descriptionPrompt = new PromptFormatter(
+            new List<string>
+            {
+                "A godly warrior Zuesania.",
+                "A dancing warrior Emeraldee.",
+            },
+            new List<string>
+            {
+                "Zuesania was born from the skies.",
+                "The warriro Emeraldee is known to weild tango dancing as her true weapon."
+            }).Build(warriorType + " " + name + ".");
+
+        Debug.Log(descriptionPrompt);
+
+        string description = await manager.Prompt(descriptionPrompt);
         smartPawn.characterDescription = description.Trim();
         Debug.Log("Description: " + description);
 
@@ -32,5 +73,5 @@ public class SmartPawnBuilder : MonoBehaviour
         string hunger = await manager.Prompt(quotePrompt + " their hunger:");
         smartPawn.currentHungerState = hunger.Trim();
         Debug.Log("Hunger: " + hunger);
-    }
+*/    }
 }

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
+using TMPro;
 
 public class BoardManager : MonoBehaviour
 {
@@ -34,30 +35,37 @@ public class BoardManager : MonoBehaviour
 
     public int[] EnPassantMove { set; get; }
 
+    [SerializeField] bool doBuildPieces = true;
     [SerializeField] SmartPawnView smartPawnView;
     [SerializeField] SmartPawnBuilder smartPawnBuilder;
+    [SerializeField] SmartPawnCombatResolver smartPawnCombatResolver;
+    [SerializeField] GameObject battleOverlay;
 
     // Use this for initialization
     async void Start()
     {
         Instance = this;
+        battleOverlay.SetActive(false);
         SpawnAllChessmans();
 
-        Debug.Log("Building pawns...");
-        int buildCount = 0;
-        var allTasks = new List<Task>();
-        foreach(var chessman in Chessmans)
+        if(doBuildPieces)
         {
-            if (chessman is SmartPawn) // TODO: can we multi-thread with GPT4ALL??
+            Debug.Log("Building pawns...");
+            int buildCount = 0;
+            var allTasks = new List<Task>();
+            foreach(var chessman in Chessmans)
             {
-                allTasks.Add(smartPawnBuilder.BuildPawn(chessman as SmartPawn));
-/*                await smartPawnBuilder.BuildPawn(chessman as SmartPawn);
-                Debug.Log($"Built pawn {buildCount++}.");
-*/            
+                if (chessman is SmartPawn) // TODO: can we multi-thread with GPT4ALL??
+                {
+                    allTasks.Add(smartPawnBuilder.BuildPawn(chessman as SmartPawn));
+    /*                await smartPawnBuilder.BuildPawn(chessman as SmartPawn);
+                    Debug.Log($"Built pawn {buildCount++}.");
+    */            
+                }
             }
-        }
 
-        await Task.WhenAll(allTasks.ToArray());
+            await Task.WhenAll(allTasks.ToArray());
+        }
 
         EnPassantMove = new int[2] { -1, -1 };
     }
@@ -138,10 +146,49 @@ public class BoardManager : MonoBehaviour
         BoardHighlights.Instance.HighLightAllowedMoves(allowedMoves);
     }
 
-    private bool CalculateVictory()
+    private void CalculateVictory(
+        Chessman attackFrom,
+        Chessman attackTo)
     {
-        var rng = new System.Random();
-        return rng.Next(0, 100) < 50;
+
+        IEnumerator DelayCalc(
+            Chessman attackFrom,
+            Chessman attackTo)
+        {
+            battleOverlay.SetActive(true);
+            battleOverlay.GetComponentInChildren<TMP_Text>().text = string.Format(
+                SmartPawnCombatResolver.BATTLE_PROMPT_TEMPLATE,
+                (attackFrom as SmartPawn).characterName,
+                (attackTo as SmartPawn).characterName,
+                (attackFrom as SmartPawn).characterWeapon,
+                (attackTo as SmartPawn).characterWeapon) + ". \n\nProcessing...";
+            yield return new WaitForSeconds(0.2f);
+            smartPawnCombatResolver.ResolveBattle(
+                attackFrom as SmartPawn,
+                attackTo as SmartPawn,
+                OnBattleResolved);
+            battleOverlay.SetActive(false);
+        }
+
+        StartCoroutine(DelayCalc(attackFrom, attackTo));
+    }
+
+    private void OnBattleResolved(SmartPawnCombatResolver.BattleResult result)
+    {
+        if (result.result == SmartPawnCombatResolver.BattleResultValue.DefenderDies)
+        {
+            var x = result.defender.CurrentX;
+            var y = result.defender.CurrentY;
+            Chessmans[selectedChessman.CurrentX, selectedChessman.CurrentY] = null;
+            selectedChessman.transform.position = GetTileCenter(x, y);
+            selectedChessman.SetPosition(x, y);
+            Chessmans[x, y] = selectedChessman;
+
+            activeChessman.Remove(result.defender.gameObject);
+            Destroy(result.defender.gameObject);
+        }
+
+        ResetSelection();
     }
 
     private void MoveChessman(int x, int y)
@@ -149,7 +196,6 @@ public class BoardManager : MonoBehaviour
         if (allowedMoves[x, y])
         {
             Chessman c = Chessmans[x, y];
-            var victory = true;
 
             if (c != null && c.isWhite != isWhiteTurn)
             {
@@ -162,29 +208,27 @@ public class BoardManager : MonoBehaviour
                     return;
                 }
 
-                victory = CalculateVictory();
-                if (victory)
-                {
-                    activeChessman.Remove(c.gameObject);
-                    Destroy(c.gameObject);
-                }
-                else
-                {
-                    activeChessman.Remove(selectedChessman.gameObject);
-                    Destroy(selectedChessman.gameObject);
-                }
+                CalculateVictory(selectedChessman, c);
             }
-
-            if (victory)
+            else
             {
                 Chessmans[selectedChessman.CurrentX, selectedChessman.CurrentY] = null;
                 selectedChessman.transform.position = GetTileCenter(x, y);
                 selectedChessman.SetPosition(x, y);
                 Chessmans[x, y] = selectedChessman;
+                ResetSelection();
             }
+
             isWhiteTurn = !isWhiteTurn;
         }
+        else
+        {
+            ResetSelection();
+        }
+    }
 
+    void ResetSelection()
+    {
         selectedChessman.GetComponent<MeshRenderer>().material = previousMat;
 
         BoardHighlights.Instance.HideHighlights();
