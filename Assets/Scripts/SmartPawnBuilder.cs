@@ -10,41 +10,43 @@ public class SmartPawnBuilder : MonoBehaviour
 
     public async Task BuildPawn(SmartPawn smartPawn)
     {
+        manager.maxTokensPredict = 32;
+
         string warriorType = "A Martian warrior";
 
-        string namePrompt = new PromptFormatter(
+        var namePrompt = new PromptFormatter(
             new List<string>
             {
-                "A godly warrior name.",
-                "A dancing warrior name.",
+                "A godly warrior's name.",
+                "A dancing warrior's name.",
             },
             new List<string>
             {
                 "Zuesania",
                 "Emeraldee"
-            }).Build(warriorType + " name.");
+            });
 
-        Debug.Log(namePrompt);
-        string name = await manager.Prompt(namePrompt);
-        smartPawn.characterName = name.Trim();
         Debug.Log("Name: " + name);
 
-        string weaponPrompt = new PromptFormatter(
+        smartPawn.characterName = await namePrompt.Prompt(
+            manager,
+            warriorType + " name.");
+
+        var weaponPrompt = new PromptFormatter(
             new List<string>
             {
-                "A godly warrior named Zuesania.",
-                "A dancing warrior named Emeraldee.",
+                "A godly warrior named Zuesania's weapon name.",
+                "A dancing warrior named Emeraldee's weapon name.",
             },
             new List<string>
             {
                 "Zuesania's Pike",
                 "The Tango Mancer"
-            }).Build(warriorType + " named " + name + ".");
+            });
 
-        Debug.Log(weaponPrompt);
-        string weapon = await manager.Prompt(weaponPrompt);
-        smartPawn.characterWeapon = weapon.Trim();
-        Debug.Log("Weapon: " + weapon);
+        smartPawn.characterWeapon = await weaponPrompt.Prompt(
+            manager,
+            warriorType + " named " + name + "'s weapon name.");
 
 /*        string descriptionPrompt = new PromptFormatter(
             new List<string>

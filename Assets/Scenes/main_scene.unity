@@ -1340,12 +1340,12 @@ MonoBehaviour:
   initOnAwake: 1
   promptTemplate: "{0}\r"
   maxTokensPredict: 512
-  temperature: 0.765
+  temperature: 0.83
   contextWindow: 0
   topK: 40
   topP: 0.95
   batch: 1
-  repeatPenalty: 0.2
+  repeatPenalty: 0.8
   repeatLastN: 64
   contextErase: 0
 --- !u!4 &462527084

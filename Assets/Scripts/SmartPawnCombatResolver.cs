@@ -56,6 +56,8 @@ public class SmartPawnCombatResolver : MonoBehaviour
             randomDefendItem = pawnDefending.itemsOwned[Random.Range(0, pawnDefending.itemsOwned.Count)];
 */
 
+        manager.maxTokensPredict = 128;
+
         string battlePromptInput = string.Format(
             BATTLE_PROMPT_TEMPLATE,
             pawnAttacking.characterName,
@@ -63,7 +65,7 @@ public class SmartPawnCombatResolver : MonoBehaviour
             pawnAttacking.characterWeapon,
             pawnDefending.characterWeapon);
 
-        string battlePrompt = new PromptFormatter(
+        var battlePrompt = new PromptFormatter(
             new List<string>
             {
                 string.Format(BATTLE_PROMPT_TEMPLATE, "Gabro", "Doox", "Sword", "Shield"),
@@ -75,10 +77,9 @@ public class SmartPawnCombatResolver : MonoBehaviour
                 "Doox blocks.",
                 "Ned dies.",
                 "Betsy is dies."
-            }).Build(battlePromptInput);
-        Debug.Log(battlePrompt);
+            });
 
-        string battleResult = await manager.Prompt(battlePrompt);
+        string battleResult = await battlePrompt.Prompt(manager, battlePromptInput);
 
         if (battleResult.Contains("die")
             || battleResult.Contains("dead")

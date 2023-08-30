@@ -1,5 +1,8 @@
+using Gpt4All;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 
 public class PromptFormatter
@@ -29,5 +32,18 @@ public class PromptFormatter
         prompt += "INPUT:\n" + input;
         prompt += "\nOUTPUT:";
         return prompt;
+    }
+
+    public async Task<string> Prompt(LlmManager manager, string input)
+    {
+        string prompt = Build(input);
+        Debug.Log("PROMPT: " + prompt);
+        string result = await manager.Prompt(prompt);
+        Debug.Log("RESULT: " + result);
+
+        if (result == string.Empty)
+            return result;
+        else
+            return result.Split('\n').First(x => x != string.Empty).Trim();
     }
 }
