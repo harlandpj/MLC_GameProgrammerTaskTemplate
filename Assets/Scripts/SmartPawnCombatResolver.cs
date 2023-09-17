@@ -68,37 +68,72 @@ public class SmartPawnCombatResolver : MonoBehaviour
         var battlePrompt = new PromptFormatter(
             new List<string>
             {
+                // person attacker, person defender, weapon attacker weapon defender
                 string.Format(BATTLE_PROMPT_TEMPLATE, "Gabro", "Doox", "Sword", "Shield"),
                 string.Format(BATTLE_PROMPT_TEMPLATE, "Fux", "Ned", "Fists", "Fists"),
                 string.Format(BATTLE_PROMPT_TEMPLATE, "Harold", "Betsy", "Pike", "Fists"),
+
+                // ok - don't know IF i need to have the attacker being the other way round too
+                // for the LLM, added in case I do!
+                string.Format(BATTLE_PROMPT_TEMPLATE, "Doox", "Gabro", "Shield", "Sword"),
+                string.Format(BATTLE_PROMPT_TEMPLATE, "Ned", "Fux", "Fists", "Fists"),
+                string.Format(BATTLE_PROMPT_TEMPLATE, "Betsy", "Harold", "Fists", "Pike"),
             },
             new List<string>
             {
                 "Doox blocks.",
                 "Ned dies.",
-                "Betsy is dies."
+                "Betsy is dies.",
+
+                // and the other way round
+                "Gabro blocks.",
+                "Fux dies.",
+                "Harold is dies."
             });
+
+        // need to mock the LLM input and processing/output result here due to time taken by LLM
+        // so could just set up an array of strings and choose a result at random, or
+        // could make it switchable via a UI button / or simply a bool flag settable in editor window
+        // and mock it e.g if (myBoolSet) return new BattleResult(){ attacker = pawnAttacking,
+        //                         defender = pawnDefending,
+        //                           result = BattleResultValue.AttackerDies,}; 
 
         string battleResult = await battlePrompt.Prompt(manager, battlePromptInput);
 
+        // As I am guessing as to how the LLM calculates the result of a battle, added the case of the
+        // attacker dying
         if (battleResult.Contains("die")
             || battleResult.Contains("dead")
             || battleResult.Contains("kill"))
         {
-            return new BattleResult()
+            if (battleResult.Contains(pawnAttacking.characterName))
             {
-                attacker = pawnAttacking,
-                defender = pawnDefending,
-                result = BattleResultValue.DefenderDies,
-            };
+                // attacking chessman died
+                return new BattleResult()
+                {
+                    attacker = pawnAttacking,
+                    defender = pawnDefending,
+                    result = BattleResultValue.AttackerDies,
+                };
+            }
+            else
+            {
+                // defending chessman died
+                return new BattleResult()
+                {
+                    attacker = pawnAttacking,
+                    defender = pawnDefending,
+                    result = BattleResultValue.DefenderDies,
+                };
+            }
         }
-        Debug.Log("Battle result: " + battleResult);
 
-        return new BattleResult()
-        {
-            attacker = pawnAttacking,
-            defender = pawnDefending,
-            result = BattleResultValue.AllLive,
-        };
+        // ok - nobody died
+       return new BattleResult()
+       {
+           attacker = pawnAttacking,
+           defender = pawnDefending,
+           result = BattleResultValue.AllLive,
+       };
     }
 }

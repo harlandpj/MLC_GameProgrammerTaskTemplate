@@ -40,12 +40,15 @@ public class BoardManager : MonoBehaviour
     [SerializeField] SmartPawnBuilder smartPawnBuilder;
     [SerializeField] SmartPawnCombatResolver smartPawnCombatResolver;
     [SerializeField] GameObject battleOverlay;
+    [SerializeField] GameObject battleOutcomeOverlay;
 
     // Use this for initialization
     async void Start()
     {
         Instance = this;
         battleOverlay.SetActive(false);
+        battleOutcomeOverlay.SetActive(false);  
+
         SpawnAllChessmans();
 
         if(doBuildPieces)
@@ -58,13 +61,17 @@ public class BoardManager : MonoBehaviour
                 if (chessman is SmartPawn) // TODO: can we multi-thread with GPT4ALL??
                 {
                     allTasks.Add(smartPawnBuilder.BuildPawn(chessman as SmartPawn));
-    /*                await smartPawnBuilder.BuildPawn(chessman as SmartPawn);
+
+                    // this should build names, descriptions and weapons into smart pawn here, but is very slow!
+                    // pawns appear on screen way before any description is populated!
+                    await smartPawnBuilder.BuildPawn(chessman as SmartPawn);
                     Debug.Log($"Built pawn {buildCount++}.");
-    */            
+                
                 }
             }
 
             await Task.WhenAll(allTasks.ToArray());
+            Debug.Log("All Pawns built.");
         }
 
         EnPassantMove = new int[2] { -1, -1 };
@@ -156,6 +163,7 @@ public class BoardManager : MonoBehaviour
             Chessman attackTo)
         {
             battleOverlay.SetActive(true);
+            // odd error noted - exception sometimes here with a null object on tmp_text, not constructed yet/timing issue?
             battleOverlay.GetComponentInChildren<TMP_Text>().text = string.Format(
                 SmartPawnCombatResolver.BATTLE_PROMPT_TEMPLATE,
                 (attackFrom as SmartPawn).characterName,
@@ -167,12 +175,24 @@ public class BoardManager : MonoBehaviour
                 attackFrom as SmartPawn,
                 attackTo as SmartPawn,
                 OnBattleResolved);
+            battleOutcomeOverlay.SetActive(true);
             battleOverlay.SetActive(false);
         }
 
         StartCoroutine(DelayCalc(attackFrom, attackTo));
+        
+        StartCoroutine(BattleResultHUDClose());
     }
 
+    // simple function to hide battle result on ui
+    public IEnumerator BattleResultHUDClose()
+    {
+        yield return new WaitForSeconds(8);
+        battleOutcomeOverlay.GetComponent<TMP_Text>().SetText(" ");
+        battleOutcomeOverlay.SetActive(false);
+    }
+
+    // when a piece dies - add on a death mechanic here (or just display timed message in UI for now)!
     private void OnBattleResolved(SmartPawnCombatResolver.BattleResult result)
     {
         if (result.result == SmartPawnCombatResolver.BattleResultValue.DefenderDies)
@@ -186,6 +206,26 @@ public class BoardManager : MonoBehaviour
 
             activeChessman.Remove(result.defender.gameObject);
             Destroy(result.defender.gameObject);
+            battleOutcomeOverlay.GetComponent<TMP_Text>().SetText("Battle Over: Defender Died!");
+        }
+        else if (result.result == SmartPawnCombatResolver.BattleResultValue.AttackerDies)
+        {
+            // add case where the attacker dies (should I move defender to attacker position (I assume yes!) - or should attacker just die?)
+            var x = result.attacker.CurrentX;
+            var y = result.attacker.CurrentY;
+
+            Chessmans[x,y] = null; // no attacker stored here now
+            selectedChessman.transform.position = GetTileCenter(x,y);
+            selectedChessman.SetPosition(x, y); // set current position to attacker position
+            Chessmans[x, y] = selectedChessman; // set defender to attacker position
+
+            activeChessman.Remove(result.attacker.gameObject);
+            Destroy(result.attacker.gameObject);
+            battleOutcomeOverlay.GetComponent<TMP_Text>().SetText("Battle Over: Attacker Died!");
+        }
+        else
+        {
+            battleOutcomeOverlay.GetComponent<TMP_Text>().SetText("Battle Over: Nobody Died!");
         }
 
         ResetSelection();
@@ -256,7 +296,7 @@ public class BoardManager : MonoBehaviour
     {
         Vector3 position = GetTileCenter(x, y);
         GameObject go;
-
+        
         if (isWhite)
         {
             go = Instantiate(prefab, position, whiteOrientation);
@@ -314,11 +354,23 @@ public class BoardManager : MonoBehaviour
 
     private void EndGame()
     {
+        // add in output to battle complete ui here...
         if (isWhiteTurn)
+        {
             Debug.Log("White wins");
-        else
-            Debug.Log("Black wins");
+            battleOutcomeOverlay.SetActive(true);
+            battleOutcomeOverlay.GetComponent<TMP_Text>().SetText("White Won!");
+            StartCoroutine(BattleResultHUDClose());
+        }
 
+        else
+        {
+            Debug.Log("Black wins");
+            battleOutcomeOverlay.SetActive(true);
+            battleOutcomeOverlay.GetComponent<TMP_Text>().SetText("Black Won!");
+            StartCoroutine(BattleResultHUDClose());
+        }
+        
         foreach (GameObject go in activeChessman)
         {
             Destroy(go);

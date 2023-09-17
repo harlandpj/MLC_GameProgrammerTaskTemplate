@@ -7,7 +7,8 @@ public class SmartPawn : Chessman
     [SerializeField] public string characterName = "Soldier";
     [SerializeField] public string characterDescription = "No description.";
     [SerializeField] public string characterWeapon = "Fists";
-/*    [SerializeField] public string currentBeliefState = "Inspired";
+
+/*  [SerializeField] public string currentBeliefState = "Inspired";
     [SerializeField] public List<string> itemsOwned = new List<string>();
     [SerializeField] public string currentHungerState = "Full";
     [SerializeField] public List<string> awardsOwned = new List<string>();
